@@ -304,6 +304,27 @@
   }
 
   /* ======================= 射击守城 ======================= */
+  // 守城 / 钓鱼：左上角「返回」，确认后回地图（开局已扣的体力不退）
+  function backBtn(scene, isOver) {
+    const b = button(scene, 78, 128, 130, 58, '返回', { color: C.gray, size: 24, r: 29, onClick: () => {
+      if (isOver() || scene.held) return;
+      const hold = on => { scene.held = on; scene.time.paused = on; if (on) scene.tweens.pauseAll(); else scene.tweens.resumeAll(); };
+      hold(true);
+      G.hud.modal({
+        title: '要回地图吗？', titleColor: C.grape, w: 560, h: 330, closable: false,
+        build: (p, close) => {
+          const hud = G.hud;
+          p.add(txt(hud, 0, -50, '这一局会直接结束', 28, '#4a2c17', { stroke: '', st: 0, shadow: false }));
+          p.add(txt(hud, 0, -8, '已经拿到的金币和学识星会保留，体力不退', 19, '#8a6a4f', { stroke: '', st: 0, shadow: false }));
+          p.add(button(hud, -125, 90, 210, 72, '继续玩', { color: C.mint, size: 28, onClick: () => { close(); hold(false); } }));
+          const go = button(hud, 125, 90, 210, 72, '回地图', { color: C.coral, size: 28, onClick: () => { close(); hold(false); scene.over = true; scene.state = 'done'; G.trans.go(scene, 'Map'); } });
+          p.add(go); G.test.backGo = go;
+        }
+      });
+    } }).setDepth(950);
+    G.test.back = b; return b;
+  }
+
   class Shoot extends Phaser.Scene {
     constructor() { super({ key: 'Shoot' }); }
     init(d) { this.unit = (d && d.unit) || S().curUnit || 1; }
@@ -326,6 +347,7 @@
       this.keys = [];
       this.tray.y = H + 120; this.tweens.add({ targets: this.tray, y: 735, duration: 500, ease: 'Back.Out' });
       this.input.keyboard.on('keydown', e => { if (/^[a-zA-Z]$/.test(e.key)) { const k = this.keys.find(k => !k.used && k.letter === e.key.toLowerCase()); if (k) this.press(k); else this.press(null, e.key.toLowerCase()); } });
+      backBtn(this, () => this.over);
       FX.banner(this, '守住城墙！按顺序点字母发射', { y: 300, hold: 1400, color: C.coral });
       this.time.delayedCall(1200, () => this.spawn());
       this.spawnEv = this.time.addEvent({ delay: 7000, loop: true, callback: () => this.spawn() });
@@ -454,7 +476,7 @@
       if (this.hearts <= 0) return this.end();
       this.time.delayedCall(200, () => { if (t === this.target) this.pickTarget(); });
     }
-    update(time, delta) {
+    update(time, delta) { if (this.held) return;
       if (this.over) return;
       this.mons.forEach(m => {
         if (!m.alive) return;
@@ -519,10 +541,11 @@
       this.updateTop();
       FX.banner(this, '抛竿钓鱼，上钩了就快收线！', { y: 300, hold: 1300, color: C.sky });
       G.test.fish = this; G.test.phase = 'idle'; G.test.action = this.btn;
+      backBtn(this, () => this.state === 'done');
     }
     updateTop() { const m = Math.floor(this.timeLeft / 60), s = this.timeLeft % 60; this.topT.setText('第 ' + Math.min(this.casts + (this.state === 'idle' ? 1 : 0), this.maxCasts) + '/' + this.maxCasts + ' 竿  ⏱ ' + m + ':' + (s < 10 ? '0' : '') + s); }
     tip() { return { x: this.pet.x + 40 + Math.cos(this.rodAng) * 170, y: this.pet.y - 70 + Math.sin(this.rodAng) * 170 }; }
-    update(time) {
+    update(time) { if (this.held) return;
       const g = this.rod; g.clear();
       const bx = this.pet.x + 40, by = this.pet.y - 70, tp = this.tip();
       // 鱼竿

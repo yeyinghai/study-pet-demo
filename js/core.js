@@ -5,7 +5,7 @@
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 
   const DEFAULT = () => ({
-    v: 3, hatched: false, petStage: 0, petName: '小白',
+    v: 3, hatched: false, petStage: 0, petName: '小白', species: 'fox',
     stamina: 30, staminaDate: today(), coins: 0, stars: 0,
     words: {}, wrong: {}, unlocked: 1, dex: {}, fish: { common: 0, blue: 0, rare: 0, legend: 0 },
     curUnit: 1, pos: null, cooldownUntil: 0, stats: { answered: 0, correct: 0, rounds: 0 }, tipsSeen: {}
@@ -243,12 +243,24 @@
    * 阶段：0 宠物蛋 → 1 幼年白狐 → 2 成年白狐（10 星）→ 3 风语翼狐（20 星）
    * 属性全部由学识星和阶段算出来（不另存），并直接用于对战。 */
   const PET = {
-    stages: [
-      { name: '宠物蛋', key: 'egg', need: 0 },
-      { name: '幼年白狐', key: 'pet-baby', need: 0 },
-      { name: '成年白狐', key: 'pet-teen', need: 10 },
-      { name: '风语翼狐', key: 'pet-adult', need: 20 }
-    ],
+    // 5 种宠物，孵蛋时随机开出一种；每种 3 个成长形态
+    SPECIES: {
+      fox: { name: '白狐', names: ['幼年白狐', '成年白狐', '风语翼狐'], keys: ['pet-baby', 'pet-teen', 'pet-adult'], def: '小白', color: 0xfbf4ec, line: '风语系' },
+      dragon: { name: '小青龙', names: ['小青龙', '青鳞龙', '翠玉书龙'], keys: ['pet-dragon-1', 'pet-dragon-2', 'pet-dragon-3'], def: '小青', color: 0x7fd6a8, line: '文墨系' },
+      robot: { name: '机器猫', names: ['机器喵', '喷射机械喵', '星辉机甲喵'], keys: ['pet-robot-1', 'pet-robot-2', 'pet-robot-3'], def: '铁蛋', color: 0x9fd2ff, line: '机巧系' },
+      bird: { name: '云雀', names: ['小云雀', '晴空云雀', '彩虹云雀'], keys: ['pet-bird-1', 'pet-bird-2', 'pet-bird-3'], def: '啾啾', color: 0xffe27a, line: '风语系' },
+      otter: { name: '小海獭', names: ['小海獭', '贝壳海獭', '潮汐守护獭'], keys: ['pet-otter-1', 'pet-otter-2', 'pet-otter-3'], def: '贝贝', color: 0xd9a77a, line: '文墨系' }
+    },
+    sp(s) { s = s || S(); return this.SPECIES[s.species] || this.SPECIES.fox; },
+    randomSpecies() { const k = Object.keys(this.SPECIES); return k[Math.floor(Math.random() * k.length)]; },
+    get stages() {
+      const sp = this.sp();
+      return [{ name: '宠物蛋', key: 'egg', need: 0 },
+        { name: sp.names[0], key: sp.keys[0], need: 0 },
+        { name: sp.names[1], key: sp.keys[1], need: 10 },
+        { name: sp.names[2], key: sp.keys[2], need: 20 }];
+    },
+    key(st) { return this.sp().keys[Math.max(1, Math.min(3, st || 1)) - 1]; },
     bonus: { hp: [0, 0, 20, 40], atk: [0, 0, 2, 5], def: [0, 0, 2, 4] },
     stage(s) { return (s || S()).petStage || 0; },
     name(st) { return (this.stages[st] || this.stages[1]).name; },

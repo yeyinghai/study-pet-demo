@@ -289,8 +289,9 @@
     }
     build() {
       this.face.removeAll(true);
-      const d = EYES[this.stage] || EYES[1];
-      const img = this.scene.add.image(0, 0, d.key).setOrigin(0.5, 1);
+      const key = PET.key(this.stage);
+      const d = (S().species || 'fox') === 'fox' ? (EYES[this.stage] || EYES[1]) : { key, eyes: [] };
+      const img = this.scene.add.image(0, 0, key).setOrigin(0.5, 1);
       const s = this.h / img.height; img.setScale(s); this.img = img; this.face.add(img);
       const dw = img.displayWidth, dh = img.displayHeight;
       this.shadow.setDisplaySize(dw * (this.stage >= 2 ? 0.55 : 0.75), Math.max(14, dh * 0.12));
@@ -322,8 +323,8 @@
       const b = bubble(this.scene, 0, -this.h - 46, w, 58, {}); b.add(txt(this.scene, 0, 0, s, 26, '#4a2c17', { stroke: '', st: 0, shadow: false }));
       if (this.sayTop) {
         // 地图上：气泡放在最上层，跟随宠物
-        b.setDepth(9000); const follow = () => { if (!b.scene) { this.scene.events.off('postupdate', follow); return; } b.x = this.x; b.y = this.y - this.h - 46; };
-        follow(); this.scene.events.on('postupdate', follow);
+        b.setDepth(9000); const sc0 = this.scene; const follow = () => { if (!b.scene || !this.scene) { sc0.events.off('postupdate', follow); if (b.scene) b.destroy(); return; } b.x = this.x; b.y = this.y - this.h - 46; };
+        follow(); sc0.events.on('postupdate', follow); sc0.events.once('shutdown', () => sc0.events.off('postupdate', follow));
       } else this.add(b);
       this.sayC = b;
       const sc = this.scene;

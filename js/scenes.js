@@ -190,6 +190,28 @@
   };
 
 
+  /* ---------------- 起名：网页输入框（iPad 能弹出中文键盘）---------------- */
+  G.askName = function (cur, sp, done) {
+    const old = document.getElementById('nameBox'); if (old) old.remove();
+    const box = document.createElement('div'); box.id = 'nameBox';
+    box.style.cssText = 'position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(43,29,58,.45);font-family:' + UI.FONT;
+    const ideas = [sp.def, '豆豆', '团子', '闪闪', '布丁', '阿星'].filter((v, i, a) => a.indexOf(v) === i).slice(0, 5);
+    box.innerHTML = '<div style="background:#fff8ea;border:5px solid #4a2c17;border-radius:28px;padding:26px 30px;width:min(460px,86vw);text-align:center;box-shadow:0 10px 0 rgba(0,0,0,.2)">' +
+      '<div style="font-size:28px;color:#4a2c17;font-weight:bold;margin-bottom:6px">给' + sp.name + '起个名字</div>' +
+      '<div style="font-size:16px;color:#a0754f;margin-bottom:14px">最多 6 个字，以后在宠物面板里还能改</div>' +
+      '<input id="nameIn" maxlength="6" style="width:100%;box-sizing:border-box;font-size:30px;padding:10px 16px;border:4px solid #4a2c17;border-radius:18px;text-align:center;outline:none;color:#4a2c17;font-family:inherit">' +
+      '<div id="nameIdeas" style="margin:14px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"></div>' +
+      '<button id="nameOk" style="font-size:26px;font-weight:bold;color:#fff;background:#3ec58a;border:4px solid #4a2c17;border-radius:20px;padding:10px 46px;cursor:pointer;font-family:inherit">就叫它</button></div>';
+    document.body.appendChild(box);
+    const inp = box.querySelector('#nameIn'); inp.value = cur || sp.def;
+    ideas.forEach(n => { const b = document.createElement('button'); b.textContent = n; b.style.cssText = 'font-size:18px;padding:6px 14px;border:3px solid #4a2c17;border-radius:14px;background:#ffe9b8;color:#4a2c17;cursor:pointer;font-family:inherit'; b.onclick = () => { inp.value = n; SFX.play('tap'); }; box.querySelector('#nameIdeas').appendChild(b); });
+    const ok = () => { const v = inp.value.replace(/\s+/g, '').slice(0, 6) || sp.def; box.remove(); SFX.play('cheer'); done(v); };
+    box.querySelector('#nameOk').onclick = ok;
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') ok(); });
+    setTimeout(() => { inp.focus(); inp.select(); }, 50);
+    G.test.nameBox = { set: v => { inp.value = v; }, ok };
+  };
+
   /* ---------------- 宠物面板：成长路线 + 属性 ---------------- */
   G.openPet = function () {
     const s = S(), ps = PET.stats(s), st = ps.stage;
@@ -203,7 +225,9 @@
         const pet = new Pet(hud, -305, -18, PET.h(180, 190, st), st); p.add(pet);
         hud.time.delayedCall(400, () => { if (pet.scene) pet.cheer(['一起学习吧！', '我会变强的！']); });
         p.add(txt(hud, -305, 14, s.petName, 28, '#4a2c17', dark));
-        p.add(txt(hud, -305, 46, PET.name(st) + ' · Lv ' + ps.lv, 20, '#a0754f', dark));
+        const rn = UI.button(hud, -305 + Math.max(70, s.petName.length * 15 + 56), 14, 72, 38, '改名', { color: C.sky, size: 18, r: 19, onClick: () => G.askName(s.petName, PET.sp(s), n => { s.petName = n; Save.save(); G.hud.closeModal(true); G.openPet(); }) });
+        p.add(rn); G.test.rename = rn;
+        p.add(txt(hud, -305, 46, PET.name(st) + ' · ' + PET.sp(s).line + ' · Lv ' + ps.lv, 20, '#a0754f', dark));
         // 右：属性
         p.add(txt(hud, -100, -232, '宠物属性', 26, '#4a2c17', { ox: 0, stroke: '', st: 0, shadow: false }));
         p.add(txt(hud, 450, -232, '学识星越多越强，对战里真的有用', 16, '#a0754f', { ox: 1, stroke: '', st: 0, shadow: false }));
@@ -242,7 +266,7 @@
         });
         // 进度条到下一阶段
         const nn = PET.nextNeed(st);
-        const msg = st >= 3 ? '已经是最终形态「风语翼狐」啦！' : '再拿 ' + Math.max(0, nn - s.stars) + ' 颗学识星，进化成「' + PET.name(st + 1) + '」（' + s.stars + '/' + nn + '）';
+        const msg = st >= 3 ? '已经是最终形态「' + PET.name(3) + '」啦！' : '再拿 ' + Math.max(0, nn - s.stars) + ' 颗学识星，进化成「' + PET.name(st + 1) + '」（' + s.stars + '/' + nn + '）';
         p.add(txt(hud, 0, 116, msg, 19, '#ffffff', { stroke: '#a0754f', st: 5 }));
       }
     });
@@ -287,7 +311,7 @@
       const b = button(this, W / 2, 700, 300, 84, s.hatched ? '继续冒险' : '开始冒险', { color: C.coral, size: 36, onClick: () => { SFX.init(); G.trans.go(this, s.hatched ? 'Map' : 'Hatch'); } });
       b.setScale(0); this.tweens.add({ targets: b, scale: 1, delay: 600, duration: 450, ease: 'Back.Out', onComplete: () => b.pulse(true) });
       G.test.start = b;
-      this.add.text(W - 16, H - 12, 'Demo v0.3 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
+      this.add.text(W - 16, H - 12, 'Demo v0.4 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
     }
   }
 
@@ -343,16 +367,20 @@
         FX.burst(this, W / 2, 470, { tex: 'shell', count: 14, speed: 600, life: 1100, scale: 1.2, gravity: 900, rotate: true, depth: 50 });
         FX.burst(this, W / 2, 470, { tex: 'spark', count: 30, speed: 520, life: 900, scale: 1, tint: [0xffffff, 0xffd84d, 0x9fd8ff], add: true });
         FX.rays(this, W / 2, 470, 0xfff1a8, { depth: 1, r: 420 });
-        const s = S(); s.hatched = true; s.petStage = 1; s.pos = null; Save.save();
+        const s = S(); s.species = PET.randomSpecies(); s.petName = PET.sp(s).def; s.hatched = true; s.petStage = 1; s.pos = null; Save.save();
         const pet = new Pet(this, W / 2, 610, 260, 1); pet.setDepth(10); pet.setScale(0);
         this.tweens.add({ targets: pet, scale: 1, duration: 600, ease: 'Back.Out', onComplete: () => pet.cheer(['你好呀！', 'Hello!']) });
         SFX.play('fanfare'); FX.confetti(this);
-        this.time.delayedCall(500, () => FX.banner(this, '白狐宝宝「小白」出生啦！', { y: 140, hold: 99999, color: C.coral }));
-        this.time.delayedCall(1200, () => {
+        const sp = PET.sp(s);
+        const ban = FX.banner(this, '是' + sp.name + '宝宝！快给它起个名字吧', { y: 140, hold: 99999, color: C.coral });
+        this.time.delayedCall(1300, () => G.askName(s.petName, sp, name => {
+          s.petName = name; Save.save(); pet.cheer(['我叫' + name + '！', '谢谢你！']);
+          if (ban && ban.destroy) ban.destroy();
+          FX.banner(this, sp.name + '宝宝「' + name + '」出生啦！', { y: 140, hold: 99999, color: C.coral });
           const b = button(this, W / 2, 725, 320, 80, '带它去冒险', { color: C.mint, size: 34, onClick: () => G.trans.go(this, 'Map') });
           b.setScale(0); this.tweens.add({ targets: b, scale: 1, duration: 400, ease: 'Back.Out', onComplete: () => b.pulse(true) });
           G.test.go = b;
-        });
+        }));
       } });
     }
   }
@@ -573,7 +601,7 @@
       g.fillStyle(0xffffff, 0.6); g.fillRoundedRect(-430, -42, 860, 14, 7);
       bar.add(g);
       const defs = [
-        ['pet', '宠物', 'pet-baby', C.coral, () => G.openPet()],
+        ['pet', '宠物', PET.key(1), C.coral, () => G.openPet()],
         ['shoot', '守城', 'ic_shoot', 0xff9f5a, () => this.play('Shoot')],
         ['fish', '钓鱼', 'ic_fish', C.sky, () => this.play('Fish')],
         ['dex', '图鉴', 'ic_dex', C.sun, () => G.openDex()],
