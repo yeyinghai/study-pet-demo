@@ -671,7 +671,7 @@
       const rar = this.rollRarity(q.wasWrong), F = FISH[rar];
       const speed = Phaser.Math.Clamp((7000 - ms) / 7000, 0, 1);
       const kg = +(Phaser.Math.FloatBetween(F.w[0], F.w[1]) * (1 + 0.6 * speed)).toFixed(1);
-      S().fish[rar]++; Save.save();
+      { const s = S(); s.fish[rar]++; s.fishBest = s.fishBest || {}; if (!(s.fishBest[rar] >= kg)) s.fishBest[rar] = kg; } Save.save();
       this.bob.setVisible(false); SFX.play('splash'); SFX.play('reel');
       this.tweens.add({ targets: this, bend: 0, rodAng: -1.6, duration: 300, ease: 'Back.Out' });
       FX.burst(this, this.bob.x, this.bob.y, { tex: 'dot', count: 22, speed: 380, life: 800, scale: 0.9, gravity: 800, angle: { min: 200, max: 340 }, tint: [0xffffff, 0xbfeaff] });

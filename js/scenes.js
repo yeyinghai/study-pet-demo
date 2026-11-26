@@ -73,29 +73,61 @@
     });
   };
 
-  G.openDex = function () {
-    const s = S();
+  G.openDex = function (tab) {
+    const s = S(); PET.seen(s); Save.save();
+    tab = tab || G.dexTab || 'mon'; G.dexTab = tab;
+    const plain = { stroke: '', st: 0, shadow: false };
+    const card = (hud, p, x, y, w, h, got, key, tint, name, top, sub) => {
+      const g = hud.add.graphics();
+      g.fillStyle(UI.C.out); g.fillRoundedRect(x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8, 20);
+      g.fillStyle(got ? 0xfff1d6 : 0xe5dcef); g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 18);
+      if (got && tint != null) { g.fillStyle(tint, 0.35); g.fillCircle(x, y - 8, Math.min(w, h) * 0.32); }
+      p.add(g);
+      const im = hud.add.image(x, y - 8, key); im.setScale(Math.min((h * 0.55) / im.height, (w * 0.8) / im.width)); p.add(im);
+      if (!got) im.setTintFill(0x5b4a6e);
+      if (top) p.add(txt(hud, x, y - h / 2 + 16, top, 14, '#a0754f', plain));
+      p.add(txt(hud, x, y + h / 2 - (sub ? 34 : 20), got ? name : '？？？', 18, got ? '#4a2c17' : '#8a7a9a', plain));
+      if (sub) p.add(txt(hud, x, y + h / 2 - 14, sub, 13, '#8a6a4f', plain));
+    };
+    const monN = Object.keys(s.dex).length, fishN = Object.keys(FISH).filter(k => s.fish[k] > 0).length, petN = Object.keys(s.petDex).length;
     G.hud.modal({
-      title: '怪物图鉴', titleColor: C.sun, w: 900, h: 560,
+      title: '图鉴', titleColor: C.sun, w: 1000, h: 600,
       build: (p) => {
         const hud = G.hud;
-        for (let u = 1; u <= 6; u++) {
-          const col = (u - 1) % 3, row = Math.floor((u - 1) / 3);
-          const x = -280 + col * 280, y = -125 + row * 230;
-          const got = !!s.dex[u];
-          const g = hud.add.graphics();
-          g.fillStyle(UI.C.out); g.fillRoundedRect(x - 124, y - 104, 248, 208, 22);
-          g.fillStyle(got ? 0xfff1d6 : 0xe5dcef); g.fillRoundedRect(x - 120, y - 100, 240, 200, 20);
-          if (got) { g.fillStyle(MONSTERS[u].color, 0.35); g.fillCircle(x, y - 10, 70); }
-          p.add(g);
-          const im = hud.add.image(x, y - 10, MONSTERS[u].key); im.setScale(130 / im.height); p.add(im);
-          if (!got) im.setTintFill(0x5b4a6e);
-          else hud.tweens.add({ targets: im, scaleY: im.scaleY * 1.05, duration: 700 + u * 50, yoyo: true, repeat: -1 });
-          p.add(txt(hud, x, y + 72, got ? MONSTERS[u].name : '？？？', 22, got ? '#4a2c17' : '#8a7a9a', { stroke: '', st: 0, shadow: false }));
-          p.add(txt(hud, x, y - 84, '第' + u + '单元', 16, '#a0754f', { stroke: '', st: 0, shadow: false }));
+        const tabs = [['mon', '怪物 ' + monN + '/6', C.coral], ['fish', '鱼 ' + fishN + '/4', C.sky], ['pet', '宠物 ' + petN + '/15', C.mint]];
+        tabs.forEach(([k, label, col], i) => {
+          const b = button(hud, -260 + i * 260, -232, 230, 56, label, { color: k === tab ? col : C.gray, size: 24, r: 26, onClick: () => { if (k !== tab) { G.hud.closeModal(true); G.openDex(k); } } });
+          p.add(b); G.test['dex_' + k] = b;
+        });
+        if (tab === 'mon') {
+          for (let u = 1; u <= 6; u++) {
+            const col = (u - 1) % 3, row = Math.floor((u - 1) / 3);
+            card(hud, p, -290 + col * 290, -60 + row * 210, 250, 190, !!s.dex[u], MONSTERS[u].key, MONSTERS[u].color, MONSTERS[u].name, '第' + u + '单元', s.dex[u] ? '已收服' : '草丛里打败它再收服');
+          }
+          p.add(txt(hud, 0, 262, '打败怪物后扔学识球，答对就能收服，还会解锁下一个单元', 18, '#6b4a33', plain));
+        } else if (tab === 'fish') {
+          ['common', 'blue', 'rare', 'legend'].forEach((k, i) => {
+            const F = FISH[k], n = s.fish[k] || 0, best = (s.fishBest || {})[k];
+            card(hud, p, -345 + i * 230, 20, 210, 330, n > 0, F.key, F.color, F.name, F.tag, n > 0 ? '钓到 ' + n + ' 条' + (best ? ' · 最重 ' + best + 'kg' : '') : '还没钓到');
+          });
+          p.add(txt(hud, 0, 262, '错题本里的单词出现在钓鱼时，更容易钓到稀有和传说的鱼', 18, '#6b4a33', plain));
+        } else {
+          const ks = Object.keys(PET.SPECIES);
+          ks.forEach((sk, r) => {
+            const SP = PET.SPECIES[sk], mine = sk === (s.species || 'fox');
+            const y = -148 + r * 86;
+            p.add(txt(hud, -400, y, SP.name, 20, mine ? '#e0583a' : '#4a2c17', Object.assign({ ox: 0 }, plain)));
+            p.add(txt(hud, -400, y + 24, mine ? '我的宠物' : SP.line, 13, '#a0754f', Object.assign({ ox: 0 }, plain)));
+            for (let st = 1; st <= 3; st++) {
+              const got = !!s.petDex[sk + st], x = -190 + (st - 1) * 230;
+              const g = hud.add.graphics(); g.fillStyle(UI.C.out); g.fillRoundedRect(x - 104, y - 40, 208, 82, 16); g.fillStyle(got ? 0xfff1d6 : 0xe5dcef); g.fillRoundedRect(x - 101, y - 37, 202, 76, 14); p.add(g);
+              const im = hud.add.image(x - 58, y + 1, SP.keys[st - 1]); im.setScale(Math.min(68 / im.height, 80 / im.width)); p.add(im); if (!got) im.setTintFill(0x5b4a6e);
+              p.add(txt(hud, x + 36, y - 8, got ? SP.names[st - 1] : '？？？', 16, got ? '#4a2c17' : '#8a7a9a', plain));
+              p.add(txt(hud, x + 36, y + 16, ['幼年', '10 颗星', '20 颗星'][st - 1], 12, '#a0754f', plain));
+            }
+          });
+          p.add(txt(hud, 0, 266, '养大自己的宠物就能点亮它的形态；其他宠物以后可以从新的蛋里孵出', 16, '#6b4a33', plain));
         }
-        const f = s.fish;
-        p.add(txt(hud, 0, 248, '钓到的鱼：普通 ' + f.common + ' · 少见 ' + f.blue + ' · 稀有 ' + f.rare + ' · 传说 ' + f.legend, 20, '#6b4a33', { stroke: '', st: 0, shadow: false }));
       }
     });
   };
@@ -311,7 +343,7 @@
       const b = button(this, W / 2, 700, 300, 84, s.hatched ? '继续冒险' : '开始冒险', { color: C.coral, size: 36, onClick: () => { SFX.init(); G.trans.go(this, s.hatched ? 'Map' : 'Hatch'); } });
       b.setScale(0); this.tweens.add({ targets: b, scale: 1, delay: 600, duration: 450, ease: 'Back.Out', onComplete: () => b.pulse(true) });
       G.test.start = b;
-      this.add.text(W - 16, H - 12, 'Demo v0.4.1 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
+      this.add.text(W - 16, H - 12, 'Demo v0.5 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
     }
   }
 
@@ -367,7 +399,7 @@
         FX.burst(this, W / 2, 470, { tex: 'shell', count: 14, speed: 600, life: 1100, scale: 1.2, gravity: 900, rotate: true, depth: 50 });
         FX.burst(this, W / 2, 470, { tex: 'spark', count: 30, speed: 520, life: 900, scale: 1, tint: [0xffffff, 0xffd84d, 0x9fd8ff], add: true });
         FX.rays(this, W / 2, 470, 0xfff1a8, { depth: 1, r: 420 });
-        const s = S(); s.species = PET.randomSpecies(); s.petName = PET.sp(s).def; s.hatched = true; s.petStage = 1; s.pos = null; Save.save();
+        const s = S(); s.species = PET.randomSpecies(); s.petName = PET.sp(s).def; s.hatched = true; s.petStage = 1; s.pos = null; PET.seen(s); Save.save();
         const pet = new Pet(this, W / 2, 610, 260, 1); pet.setDepth(10); pet.setScale(0);
         this.tweens.add({ targets: pet, scale: 1, duration: 600, ease: 'Back.Out', onComplete: () => pet.cheer(['你好呀！', 'Hello!']) });
         SFX.play('fanfare'); FX.confetti(this);
@@ -578,7 +610,7 @@
         else {
           a.destroy(); b.clearTint(); b.setVisible(true); hud.cameras.main.flash(500, 255, 255, 255); SFX.play('fanfare');
           FX.confetti(hud, { depth: 320 }); FX.burst(hud, W / 2, 420, { tex: 'star', count: 24, speed: 500, life: 1200, scale: 0.8, depth: 320 });
-          s.petStage = to; Save.save(); this.pet.h = PET.h(112, 125, to); this.pet.setStage(to);
+          s.petStage = to; PET.seen(s); Save.save(); this.pet.h = PET.h(112, 125, to); this.pet.setStage(to);
           FX.banner(hud, s.petName + '进化成了「' + PET.name(to) + '」！', { y: 120, hold: 2200, color: C.coral, depth: 310 });
           hud.tweens.add({ targets: b, y: 540, duration: 600, yoyo: true, repeat: 1, ease: 'Sine.InOut' });
           hud.syncNow();

@@ -260,6 +260,8 @@
         { name: sp.names[1], key: sp.keys[1], need: 10 },
         { name: sp.names[2], key: sp.keys[2], need: 20 }];
     },
+    // 宠物图鉴：记录见过的形态
+    seen(s) { s = s || S(); s.petDex = s.petDex || {}; const st = s.petStage || 0; for (let i = 1; i <= st; i++) s.petDex[(s.species || 'fox') + i] = true; return s.petDex; },
     key(st) { return this.sp().keys[Math.max(1, Math.min(3, st || 1)) - 1]; },
     bonus: { hp: [0, 0, 20, 40], atk: [0, 0, 2, 5], def: [0, 0, 2, 4] },
     stage(s) { return (s || S()).petStage || 0; },
