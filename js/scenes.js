@@ -230,7 +230,7 @@
         p.add(txt(hud, -305, 46, PET.name(st) + ' · ' + PET.sp(s).line + ' · Lv ' + ps.lv, 20, '#a0754f', dark));
         // 右：属性
         p.add(txt(hud, -100, -232, '宠物属性', 26, '#4a2c17', { ox: 0, stroke: '', st: 0, shadow: false }));
-        p.add(txt(hud, 450, -232, '学识星越多越强，对战里真的有用', 16, '#a0754f', { ox: 1, stroke: '', st: 0, shadow: false }));
+        p.add(txt(hud, 450, -232, PET.sp(s).trait, 16, '#a0754f', { ox: 1, stroke: '', st: 0, shadow: false }));
         const rows = [
           ['生命', ps.hp, 260, 0x5ee08a, '对战血量'],
           ['攻击', ps.atk, 30, C.coral, '答对一次的伤害'],
@@ -311,7 +311,7 @@
       const b = button(this, W / 2, 700, 300, 84, s.hatched ? '继续冒险' : '开始冒险', { color: C.coral, size: 36, onClick: () => { SFX.init(); G.trans.go(this, s.hatched ? 'Map' : 'Hatch'); } });
       b.setScale(0); this.tweens.add({ targets: b, scale: 1, delay: 600, duration: 450, ease: 'Back.Out', onComplete: () => b.pulse(true) });
       G.test.start = b;
-      this.add.text(W - 16, H - 12, 'Demo v0.4 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
+      this.add.text(W - 16, H - 12, 'Demo v0.4.1 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
     }
   }
 

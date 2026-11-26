@@ -245,11 +245,11 @@
   const PET = {
     // 5 种宠物，孵蛋时随机开出一种；每种 3 个成长形态
     SPECIES: {
-      fox: { name: '白狐', names: ['幼年白狐', '成年白狐', '风语翼狐'], keys: ['pet-baby', 'pet-teen', 'pet-adult'], def: '小白', color: 0xfbf4ec, line: '风语系' },
-      dragon: { name: '小青龙', names: ['小青龙', '青鳞龙', '翠玉书龙'], keys: ['pet-dragon-1', 'pet-dragon-2', 'pet-dragon-3'], def: '小青', color: 0x7fd6a8, line: '文墨系' },
-      robot: { name: '机器猫', names: ['机器喵', '喷射机械喵', '星辉机甲喵'], keys: ['pet-robot-1', 'pet-robot-2', 'pet-robot-3'], def: '铁蛋', color: 0x9fd2ff, line: '机巧系' },
-      bird: { name: '云雀', names: ['小云雀', '晴空云雀', '彩虹云雀'], keys: ['pet-bird-1', 'pet-bird-2', 'pet-bird-3'], def: '啾啾', color: 0xffe27a, line: '风语系' },
-      otter: { name: '小海獭', names: ['小海獭', '贝壳海獭', '潮汐守护獭'], keys: ['pet-otter-1', 'pet-otter-2', 'pet-otter-3'], def: '贝贝', color: 0xd9a77a, line: '文墨系' }
+      fox: { mod: { hp: 0, atk: 0, def: 0, crit: 1.6, ult: 2.6 }, trait: '均衡型：各项平均，没有短板', name: '白狐', names: ['幼年白狐', '成年白狐', '风语翼狐'], keys: ['pet-baby', 'pet-teen', 'pet-adult'], def: '小白', color: 0xfbf4ec, line: '风语系' },
+      dragon: { mod: { hp: -10, atk: 3, def: 0, crit: 1.6, ult: 2.8 }, trait: '攻击型：攻击高、大招更痛，血略少', name: '小青龙', names: ['小青龙', '青鳞龙', '翠玉书龙'], keys: ['pet-dragon-1', 'pet-dragon-2', 'pet-dragon-3'], def: '小青', color: 0x7fd6a8, line: '文墨系' },
+      robot: { mod: { hp: 0, atk: -1, def: 3, crit: 1.6, ult: 2.6 }, trait: '防御型：防御高，答错掉血少', name: '机器猫', names: ['机器喵', '喷射机械喵', '星辉机甲喵'], keys: ['pet-robot-1', 'pet-robot-2', 'pet-robot-3'], def: '铁蛋', color: 0x9fd2ff, line: '机巧系' },
+      bird: { mod: { hp: -10, atk: 0, def: 0, crit: 2.0, ult: 2.6 }, trait: '暴击型：4 秒内答对伤害更高，血略少', name: '云雀', names: ['小云雀', '晴空云雀', '彩虹云雀'], keys: ['pet-bird-1', 'pet-bird-2', 'pet-bird-3'], def: '啾啾', color: 0xffe27a, line: '风语系' },
+      otter: { mod: { hp: 30, atk: -1, def: 1, crit: 1.6, ult: 2.4 }, trait: '生命型：血最厚，最能扛', name: '小海獭', names: ['小海獭', '贝壳海獭', '潮汐守护獭'], keys: ['pet-otter-1', 'pet-otter-2', 'pet-otter-3'], def: '贝贝', color: 0xd9a77a, line: '文墨系' }
     },
     sp(s) { s = s || S(); return this.SPECIES[s.species] || this.SPECIES.fox; },
     randomSpecies() { const k = Object.keys(this.SPECIES); return k[Math.floor(Math.random() * k.length)]; },
@@ -269,12 +269,13 @@
     h(small, big, st) { st = st === undefined ? this.stage() : st; return st >= 2 ? big : small; },
     stats(s) {
       s = s || S(); const st = Math.max(1, s.petStage || 1), n = s.stars || 0, B = this.bonus;
-      const atk = 10 + Math.floor(n / 2) + B.atk[st];
-      const def = Math.floor(n / 3) + B.def[st];
+      const M = this.sp(s).mod;
+      const atk = 10 + Math.floor(n / 2) + B.atk[st] + M.atk;
+      const def = Math.floor(n / 3) + B.def[st] + M.def;
       return {
         stage: st, stars: n, lv: 1 + n,
-        hp: 100 + n * 4 + B.hp[st],
-        atk, crit: Math.round(atk * 1.6), ult: Math.round(atk * 2.6),
+        hp: 100 + n * 4 + B.hp[st] + M.hp,
+        atk, crit: Math.round(atk * M.crit), ult: Math.round(atk * M.ult),
         def, hurt: Math.max(12, 25 - def),
         mastered: Object.values(s.words || {}).filter(r => r.m).length,
         captured: Object.keys(s.dex || {}).length
