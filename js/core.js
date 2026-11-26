@@ -5,7 +5,7 @@
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 
   const DEFAULT = () => ({
-    v: 3, hatched: false, petStage: 0, petName: '小白', species: 'fox', petBase: 0, pets: [], active: 0, eggs: 0, eggFrom: {},
+    v: 3, hatched: false, petStage: 0, petName: '小白', species: 'fox', petBase: 0, train: { hp: 0, atk: 0, def: 0 }, pets: [], active: 0, eggs: 0, eggFrom: {},
     stamina: 30, staminaDate: today(), coins: 0, stars: 0,
     words: {}, wrong: {}, unlocked: 1, dex: {}, fish: { common: 0, blue: 0, rare: 0, legend: 0 },
     curUnit: 1, pos: null, cooldownUntil: 0, stats: { answered: 0, correct: 0, rounds: 0 }, tipsSeen: {}
@@ -20,7 +20,8 @@
       if (d && (d.v || 2) < 3) { if (d.petStage === 2) d.petStage = 3; d.v = 3; }
       this.data = Object.assign(DEFAULT(), d || {});
       const x = this.data; // 多宠物：老存档把当前宠物放进 pets[0]
-      if (x.hatched && !(x.pets && x.pets.length)) { x.pets = [{ species: x.species || 'fox', petName: x.petName, petStage: x.petStage, petBase: x.petBase || 0 }]; x.active = 0; }
+      if (x.hatched && !(x.pets && x.pets.length)) { x.pets = [{ species: x.species || 'fox', petName: x.petName, petStage: x.petStage, petBase: x.petBase || 0, train: x.train }]; x.active = 0; }
+      x.train = Object.assign({ hp: 0, atk: 0, def: 0 }, x.train || {});
       if (this.data.staminaDate !== today()) { this.data.stamina = 30; this.data.staminaDate = today(); }
       return this.data;
     },
@@ -261,8 +262,8 @@
     },
     // 这只宠物自己攒的学识星（孵出后才开始算）
     n(s) { s = s || S(); return Math.max(0, (s.stars || 0) - (s.petBase || 0)); },
-    stash(s) { s = s || S(); if (!s.hatched) return; s.pets = s.pets || []; s.pets[s.active || 0] = { species: s.species, petName: s.petName, petStage: s.petStage, petBase: s.petBase || 0 }; },
-    switchTo(i, s) { s = s || S(); this.stash(s); const p = s.pets[i]; if (!p) return; Object.assign(s, p); s.active = i; this.seen(s); Save.save(); },
+    stash(s) { s = s || S(); if (!s.hatched) return; s.pets = s.pets || []; s.pets[s.active || 0] = { species: s.species, petName: s.petName, petStage: s.petStage, petBase: s.petBase || 0, train: Object.assign({}, s.train) }; },
+    switchTo(i, s) { s = s || S(); this.stash(s); const p = s.pets[i]; if (!p) return; Object.assign(s, p); s.train = Object.assign({ hp: 0, atk: 0, def: 0 }, p.train || {}); s.active = i; this.seen(s); Save.save(); },
     // 新蛋：收服全部 6 只怪物送 1 颗；任一宠物进化到最终形态送 1 颗
     checkEggs(s) {
       s = s || S(); s.eggFrom = s.eggFrom || {}; this.stash(s); let why = '';
@@ -282,18 +283,26 @@
     key(st) { return this.sp().keys[Math.max(1, Math.min(3, st || 1)) - 1]; },
     bonus: { hp: [0, 0, 20, 40], atk: [0, 0, 2, 5], def: [0, 0, 2, 4] },
     stage(s) { return (s || S()).petStage || 0; },
+    // 金币培养：每项最多 10 级，第 k 级花 50k 金币；生命 +5/级，攻击 +1/级，防御 +1/级
+    TRAIN_MAX: 10,
+    trainCost(s, k) { const lv = ((s || S()).train || {})[k] || 0; return lv >= this.TRAIN_MAX ? 0 : 50 * (lv + 1); },
+    doTrain(k, s) {
+      s = s || S(); s.train = Object.assign({ hp: 0, atk: 0, def: 0 }, s.train || {});
+      const c = this.trainCost(s, k); if (!c || s.coins < c) return 0;
+      s.coins -= c; s.train[k]++; this.stash(s); Save.save(); return c;
+    },
     name(st) { return (this.stages[st] || this.stages[1]).name; },
     nextNeed(st) { const n = this.stages[st + 1]; return n ? n.need : 0; },
     // 地图 / 对战等场景里的显示高度：成年和翼狐的图更宽，用大一号
     h(small, big, st) { st = st === undefined ? this.stage() : st; return st >= 2 ? big : small; },
     stats(s) {
       s = s || S(); const st = Math.max(1, s.petStage || 1), n = this.n(s), B = this.bonus;
-      const M = this.sp(s).mod;
-      const atk = 10 + Math.floor(n / 2) + B.atk[st] + M.atk;
-      const def = Math.floor(n / 3) + B.def[st] + M.def;
+      const M = this.sp(s).mod, T = Object.assign({ hp: 0, atk: 0, def: 0 }, s.train || {});
+      const atk = 10 + Math.floor(n / 2) + B.atk[st] + M.atk + T.atk;
+      const def = Math.floor(n / 3) + B.def[st] + M.def + T.def;
       return {
         stage: st, stars: n, lv: 1 + n,
-        hp: 100 + n * 4 + B.hp[st] + M.hp,
+        hp: 100 + n * 4 + B.hp[st] + M.hp + T.hp * 5,
         atk, crit: Math.round(atk * M.crit), ult: Math.round(atk * M.ult),
         def, hurt: Math.max(12, 25 - def),
         mastered: Object.values(s.words || {}).filter(r => r.m).length,

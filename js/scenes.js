@@ -284,6 +284,38 @@
     });
   };
 
+  G.openTrain = function () {
+    const s = S(); G.hud.closeModal(true);
+    G.hud.modal({
+      title: '用金币培养', titleColor: C.coral, w: 760, h: 520,
+      onClose: () => G.hud.time.delayedCall(50, () => G.openPet()),
+      build: (p, close) => {
+        const hud = G.hud, plain = { stroke: '', st: 0, shadow: false };
+        const coinT = txt(hud, 0, -190, '', 24, '#a0754f', plain); p.add(coinT);
+        const items = [['hp', '生命', '+5 血', 0x5ee08a], ['atk', '攻击', '+1 伤害', C.coral], ['def', '防御', '答错少掉 1 血', C.sky]];
+        const rows = items.map((it, i) => {
+          const y = -110 + i * 100;
+          const g = hud.add.graphics(); g.fillStyle(0xf3e6cf); g.fillRoundedRect(-330, y - 40, 660, 80, 20); p.add(g);
+          p.add(txt(hud, -300, y - 10, it[1], 28, '#4a2c17', Object.assign({ ox: 0 }, plain)));
+          p.add(txt(hud, -300, y + 20, '每级 ' + it[2], 16, '#a0754f', Object.assign({ ox: 0 }, plain)));
+          const lvT = txt(hud, -40, y, '', 24, '#4a2c17', plain); p.add(lvT);
+          const b = button(hud, 220, y, 200, 60, '', { color: it[3], size: 22, onClick: () => {
+            const c = PET.doTrain(it[0], s);
+            if (!c) { G.hud.toast(PET.trainCost(s, it[0]) ? '金币不够，多答对几题吧' : '这项已经练满啦', C.gray); SFX.play('wrong'); return; }
+            G.hud.spend('coins', c); SFX.play('coin'); FX.float(hud, W / 2 + 220, H / 2 + y - 40, it[1] + ' +1 级', { color: '#ffd84d', size: 28 }); refresh();
+          } });
+          p.add(b); G.test['train_' + it[0]] = b;
+          return { k: it[0], lvT, b };
+        });
+        const refresh = () => {
+          coinT.setText('我的金币：' + s.coins + '　　培养只加属性，进化还要靠学会单词');
+          rows.forEach(r => { const lv = (s.train || {})[r.k] || 0, c = PET.trainCost(s, r.k); r.lvT.setText('Lv ' + lv + ' / ' + PET.TRAIN_MAX); r.b.setLabel(c ? c + ' 金币' : '已练满'); });
+        };
+        refresh();
+      }
+    });
+  };
+
   /* ---------------- 宠物面板：成长路线 + 属性 ---------------- */
   G.openPet = function () {
     const s = S(), ps = PET.stats(s), st = ps.stage;
@@ -299,8 +331,9 @@
         p.add(txt(hud, -305, 14, s.petName, 28, '#4a2c17', dark));
         const rn = UI.button(hud, -305 + Math.max(70, s.petName.length * 15 + 56), 14, 72, 38, '改名', { color: C.sky, size: 18, r: 19, onClick: () => G.askName(s.petName, PET.sp(s), n => { s.petName = n; PET.stash(s); Save.save(); G.hud.closeModal(true); G.openPet(); }) });
         p.add(rn); G.test.rename = rn;
-        if ((s.pets || []).length > 1) { const sw = UI.button(hud, -400, 96, 120, 38, '换宠物', { color: C.grape, size: 20, r: 21, onClick: () => G.openSwitch() }); p.add(sw); G.test.switchBtn = sw; }
-        if (s.eggs > 0) { const eb = UI.button(hud, -270, 96, 120, 38, '孵新蛋', { color: C.sun, size: 20, r: 21, onClick: () => { G.hud.closeModal(true); const m = G.game.scene.getScene('Map'); if (m && m.scene.isActive()) G.trans.go(m, 'Hatch'); } }); p.add(eb); }
+        if ((s.pets || []).length > 1) { const sw = UI.button(hud, -305, 96, 104, 38, '换宠物', { color: C.grape, size: 20, r: 21, onClick: () => G.openSwitch() }); p.add(sw); G.test.switchBtn = sw; }
+        { const tb = UI.button(hud, -415, 96, 104, 38, '培养', { color: C.coral, size: 20, r: 19, onClick: () => G.openTrain() }); p.add(tb); G.test.trainBtn = tb; }
+        if (s.eggs > 0) { const eb = UI.button(hud, -195, 96, 104, 38, '孵新蛋', { color: C.sun, size: 20, r: 21, onClick: () => { G.hud.closeModal(true); const m = G.game.scene.getScene('Map'); if (m && m.scene.isActive()) G.trans.go(m, 'Hatch'); } }); p.add(eb); }
         p.add(txt(hud, -305, 46, PET.name(st) + ' · ' + PET.sp(s).line + ' · Lv ' + ps.lv, 20, '#a0754f', dark));
         // 右：属性
         p.add(txt(hud, -100, -232, '宠物属性', 26, '#4a2c17', { ox: 0, stroke: '', st: 0, shadow: false }));
@@ -385,7 +418,7 @@
       const b = button(this, W / 2, 700, 300, 84, s.hatched ? '继续冒险' : '开始冒险', { color: C.coral, size: 36, onClick: () => { SFX.init(); G.trans.go(this, s.hatched ? 'Map' : 'Hatch'); } });
       b.setScale(0); this.tweens.add({ targets: b, scale: 1, delay: 600, duration: 450, ease: 'Back.Out', onComplete: () => b.pulse(true) });
       G.test.start = b;
-      this.add.text(W - 16, H - 12, 'Demo v0.6 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
+      this.add.text(W - 16, H - 12, 'Demo v0.7 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
     }
   }
 
