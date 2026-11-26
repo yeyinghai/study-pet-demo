@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>知识群岛 · 字母岛 Demo v0.3</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(ellipse at center,#4fb0e8 0%,#2a6fa8 100%);touch-action:none;-webkit-user-select:none;user-select:none}
+  #game{position:fixed;inset:0}
+  #rotate{display:none;position:fixed;inset:0;z-index:9;background:#2a6fa8;color:#fff;font:bold 28px "PingFang SC","Microsoft YaHei",sans-serif;align-items:center;justify-content:center;text-align:center}
+  @media (orientation:portrait) and (max-width:900px){#rotate{display:flex}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="rotate">请把设备横过来玩哦 ↻</div>
+<script src="lib/phaser.min.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/words.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/walkmask.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/games.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
