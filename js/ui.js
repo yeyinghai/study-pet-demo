@@ -461,7 +461,7 @@
       p.coins.t.setText(Math.round(d.coins) + '');
       p.stars.t.setText(Math.round(d.stars) + '');
       const nn = PET.nextNeed(s.petStage || 0);
-      p.stars.evo.setText(s.petStage >= 3 ? '最终形态' : (s.petStage >= 1 ? '进化 ' + Math.min(nn, Math.round(d.stars)) + '/' + nn : ''));
+      p.stars.evo.setText(s.petStage >= 3 ? '最终形态' : (s.petStage >= 1 ? '进化 ' + Math.min(nn, Math.max(0, Math.round(d.stars) - (s.petBase || 0))) + '/' + nn : ''));
     }
     setVisibleBar(b) { this.root.setVisible(b); }
     syncNow() { this.disp = { stamina: S().stamina, coins: S().coins, stars: S().stars }; this.render(); }

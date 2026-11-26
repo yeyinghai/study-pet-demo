@@ -5,7 +5,7 @@
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 
   const DEFAULT = () => ({
-    v: 3, hatched: false, petStage: 0, petName: '小白', species: 'fox',
+    v: 3, hatched: false, petStage: 0, petName: '小白', species: 'fox', petBase: 0, pets: [], active: 0, eggs: 0, eggFrom: {},
     stamina: 30, staminaDate: today(), coins: 0, stars: 0,
     words: {}, wrong: {}, unlocked: 1, dex: {}, fish: { common: 0, blue: 0, rare: 0, legend: 0 },
     curUnit: 1, pos: null, cooldownUntil: 0, stats: { answered: 0, correct: 0, rounds: 0 }, tipsSeen: {}
@@ -19,6 +19,8 @@
       // v2 存档里 petStage 2 = 风语翼狐；v3 起 2 = 成年白狐、3 = 风语翼狐
       if (d && (d.v || 2) < 3) { if (d.petStage === 2) d.petStage = 3; d.v = 3; }
       this.data = Object.assign(DEFAULT(), d || {});
+      const x = this.data; // 多宠物：老存档把当前宠物放进 pets[0]
+      if (x.hatched && !(x.pets && x.pets.length)) { x.pets = [{ species: x.species || 'fox', petName: x.petName, petStage: x.petStage, petBase: x.petBase || 0 }]; x.active = 0; }
       if (this.data.staminaDate !== today()) { this.data.stamina = 30; this.data.staminaDate = today(); }
       return this.data;
     },
@@ -252,7 +254,22 @@
       otter: { mod: { hp: 30, atk: -1, def: 1, crit: 1.6, ult: 2.4 }, trait: '生命型：血最厚，最能扛', name: '小海獭', names: ['小海獭', '贝壳海獭', '潮汐守护獭'], keys: ['pet-otter-1', 'pet-otter-2', 'pet-otter-3'], def: '贝贝', color: 0xd9a77a, line: '文墨系' }
     },
     sp(s) { s = s || S(); return this.SPECIES[s.species] || this.SPECIES.fox; },
-    randomSpecies() { const k = Object.keys(this.SPECIES); return k[Math.floor(Math.random() * k.length)]; },
+    randomSpecies(s) {
+      const own = ((s && s.pets) || []).map(p => p.species);
+      let k = Object.keys(this.SPECIES).filter(x => own.indexOf(x) < 0); if (!k.length) k = Object.keys(this.SPECIES);
+      return k[Math.floor(Math.random() * k.length)];
+    },
+    // 这只宠物自己攒的学识星（孵出后才开始算）
+    n(s) { s = s || S(); return Math.max(0, (s.stars || 0) - (s.petBase || 0)); },
+    stash(s) { s = s || S(); if (!s.hatched) return; s.pets = s.pets || []; s.pets[s.active || 0] = { species: s.species, petName: s.petName, petStage: s.petStage, petBase: s.petBase || 0 }; },
+    switchTo(i, s) { s = s || S(); this.stash(s); const p = s.pets[i]; if (!p) return; Object.assign(s, p); s.active = i; this.seen(s); Save.save(); },
+    // 新蛋：收服全部 6 只怪物送 1 颗；任一宠物进化到最终形态送 1 颗
+    checkEggs(s) {
+      s = s || S(); s.eggFrom = s.eggFrom || {}; this.stash(s); let why = '';
+      if (!s.eggFrom.dex6 && Object.keys(s.dex || {}).length >= 6) { s.eggFrom.dex6 = 1; s.eggs = (s.eggs || 0) + 1; why = '收服了全部 6 只怪物'; }
+      if (!s.eggFrom.final && (s.pets || []).some(p => p.petStage >= 3)) { s.eggFrom.final = 1; s.eggs = (s.eggs || 0) + 1; why = why || '宠物进化到了最终形态'; }
+      if (why) Save.save(); return why;
+    },
     get stages() {
       const sp = this.sp();
       return [{ name: '宠物蛋', key: 'egg', need: 0 },
@@ -270,7 +287,7 @@
     // 地图 / 对战等场景里的显示高度：成年和翼狐的图更宽，用大一号
     h(small, big, st) { st = st === undefined ? this.stage() : st; return st >= 2 ? big : small; },
     stats(s) {
-      s = s || S(); const st = Math.max(1, s.petStage || 1), n = s.stars || 0, B = this.bonus;
+      s = s || S(); const st = Math.max(1, s.petStage || 1), n = this.n(s), B = this.bonus;
       const M = this.sp(s).mod;
       const atk = 10 + Math.floor(n / 2) + B.atk[st] + M.atk;
       const def = Math.floor(n / 3) + B.def[st] + M.def;
@@ -284,7 +301,7 @@
       };
     },
     // 回到地图时该进化到哪一阶段（0 = 不用进化）
-    evolveTo(s) { s = s || S(); const st = s.petStage || 0; if (st >= 1 && st < 3 && s.stars >= this.nextNeed(st)) return st + 1; return 0; }
+    evolveTo(s) { s = s || S(); const st = s.petStage || 0; if (st >= 1 && st < 3 && this.n(s) >= this.nextNeed(st)) return st + 1; return 0; }
   };
   window.PET = PET;
 

@@ -126,7 +126,7 @@
               p.add(txt(hud, x + 36, y + 16, ['幼年', '10 颗星', '20 颗星'][st - 1], 12, '#a0754f', plain));
             }
           });
-          p.add(txt(hud, 0, 266, '养大自己的宠物就能点亮它的形态；其他宠物以后可以从新的蛋里孵出', 16, '#6b4a33', plain));
+          p.add(txt(hud, 0, 266, '养大宠物点亮形态；收服全部 6 只怪物、宠物进化到最终形态，各送一颗新蛋', 16, '#6b4a33', plain));
         }
       }
     });
@@ -244,6 +244,46 @@
     G.test.nameBox = { set: v => { inp.value = v; }, ok };
   };
 
+  /* ---------------- 新蛋 / 换宠物 ---------------- */
+  G.openEgg = function (map) {
+    const s = S(), why = s.eggFrom && s.eggFrom.final && s.eggFrom.dex6 ? '' : '';
+    G.hud.modal({
+      title: '获得新宠物蛋！', titleColor: C.sun, w: 640, h: 440, closable: true,
+      build: (p, close) => {
+        const hud = G.hud, plain = { stroke: '', st: 0, shadow: false };
+        const egg = hud.add.image(0, -40, 'egg'); egg.setScale(150 / egg.height); p.add(egg);
+        hud.tweens.add({ targets: egg, angle: { from: -6, to: 6 }, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+        p.add(txt(hud, 0, 70, '收服全部 6 只怪物、宠物进化到最终形态，都会各送一颗蛋', 18, '#8a6a4f', plain));
+        p.add(txt(hud, 0, 102, '新宠物从 0 颗星开始长大，现在的宠物不会消失', 18, '#8a6a4f', plain));
+        const b = button(hud, 0, 168, 260, 74, '去孵蛋', { color: C.coral, size: 32, onClick: () => { close(); G.trans.go(map, 'Hatch'); } });
+        p.add(b); b.pulse(true); G.test.eggGo = b;
+      }
+    });
+    SFX.play('fanfare');
+  };
+  G.openSwitch = function () {
+    const s = S(); PET.stash(s);
+    G.hud.closeModal(true);
+    G.hud.modal({
+      title: '换宠物', titleColor: C.grape, w: 300 + s.pets.length * 230, h: 420,
+      build: (p, close) => {
+        const hud = G.hud, plain = { stroke: '', st: 0, shadow: false };
+        s.pets.forEach((pt, i) => {
+          const x = (i - (s.pets.length - 1) / 2) * 240, SP = PET.SPECIES[pt.species], on = i === (s.active || 0);
+          const g = hud.add.graphics(); g.fillStyle(UI.C.out); g.fillRoundedRect(x - 104, -144, 208, 270, 20); g.fillStyle(on ? 0xffe9b8 : 0xfff6e6); g.fillRoundedRect(x - 100, -140, 200, 262, 18); p.add(g);
+          const im = hud.add.image(x, -30, SP.keys[Math.max(1, pt.petStage) - 1]); im.setScale(Math.min(150 / im.height, 170 / im.width)); p.add(im);
+          p.add(txt(hud, x, 62, pt.petName, 24, '#4a2c17', plain));
+          p.add(txt(hud, x, 90, SP.names[Math.max(1, pt.petStage) - 1], 16, '#a0754f', plain));
+          const b = button(hud, x, 160, 160, 54, on ? '出战中' : '让它出战', { color: on ? C.gray : C.mint, size: 22, onClick: () => {
+            if (on) return; PET.switchTo(i, s); close(); G.hud.syncNow();
+            const m = G.game.scene.getScene('Map'); if (m && m.scene.isActive()) G.trans.go(m, 'Map');
+          } });
+          p.add(b); G.test['pick' + i] = b;
+        });
+      }
+    });
+  };
+
   /* ---------------- 宠物面板：成长路线 + 属性 ---------------- */
   G.openPet = function () {
     const s = S(), ps = PET.stats(s), st = ps.stage;
@@ -257,8 +297,10 @@
         const pet = new Pet(hud, -305, -18, PET.h(180, 190, st), st); p.add(pet);
         hud.time.delayedCall(400, () => { if (pet.scene) pet.cheer(['一起学习吧！', '我会变强的！']); });
         p.add(txt(hud, -305, 14, s.petName, 28, '#4a2c17', dark));
-        const rn = UI.button(hud, -305 + Math.max(70, s.petName.length * 15 + 56), 14, 72, 38, '改名', { color: C.sky, size: 18, r: 19, onClick: () => G.askName(s.petName, PET.sp(s), n => { s.petName = n; Save.save(); G.hud.closeModal(true); G.openPet(); }) });
+        const rn = UI.button(hud, -305 + Math.max(70, s.petName.length * 15 + 56), 14, 72, 38, '改名', { color: C.sky, size: 18, r: 19, onClick: () => G.askName(s.petName, PET.sp(s), n => { s.petName = n; PET.stash(s); Save.save(); G.hud.closeModal(true); G.openPet(); }) });
         p.add(rn); G.test.rename = rn;
+        if ((s.pets || []).length > 1) { const sw = UI.button(hud, -400, 96, 120, 38, '换宠物', { color: C.grape, size: 20, r: 21, onClick: () => G.openSwitch() }); p.add(sw); G.test.switchBtn = sw; }
+        if (s.eggs > 0) { const eb = UI.button(hud, -270, 96, 120, 38, '孵新蛋', { color: C.sun, size: 20, r: 21, onClick: () => { G.hud.closeModal(true); const m = G.game.scene.getScene('Map'); if (m && m.scene.isActive()) G.trans.go(m, 'Hatch'); } }); p.add(eb); }
         p.add(txt(hud, -305, 46, PET.name(st) + ' · ' + PET.sp(s).line + ' · Lv ' + ps.lv, 20, '#a0754f', dark));
         // 右：属性
         p.add(txt(hud, -100, -232, '宠物属性', 26, '#4a2c17', { ox: 0, stroke: '', st: 0, shadow: false }));
@@ -298,7 +340,7 @@
         });
         // 进度条到下一阶段
         const nn = PET.nextNeed(st);
-        const msg = st >= 3 ? '已经是最终形态「' + PET.name(3) + '」啦！' : '再拿 ' + Math.max(0, nn - s.stars) + ' 颗学识星，进化成「' + PET.name(st + 1) + '」（' + s.stars + '/' + nn + '）';
+        const msg = st >= 3 ? '已经是最终形态「' + PET.name(3) + '」啦！' : '再拿 ' + Math.max(0, nn - PET.n(s)) + ' 颗学识星，进化成「' + PET.name(st + 1) + '」（' + PET.n(s) + '/' + nn + '）';
         p.add(txt(hud, 0, 116, msg, 19, '#ffffff', { stroke: '#a0754f', st: 5 }));
       }
     });
@@ -343,7 +385,7 @@
       const b = button(this, W / 2, 700, 300, 84, s.hatched ? '继续冒险' : '开始冒险', { color: C.coral, size: 36, onClick: () => { SFX.init(); G.trans.go(this, s.hatched ? 'Map' : 'Hatch'); } });
       b.setScale(0); this.tweens.add({ targets: b, scale: 1, delay: 600, duration: 450, ease: 'Back.Out', onComplete: () => b.pulse(true) });
       G.test.start = b;
-      this.add.text(W - 16, H - 12, 'Demo v0.5 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
+      this.add.text(W - 16, H - 12, 'Demo v0.6 · 人教PEP(2024) 三上英语 123 词', { fontFamily: UI.FONT, fontSize: '16px', color: '#ffffff' }).setOrigin(1, 1).setAlpha(0.8);
     }
   }
 
@@ -399,14 +441,14 @@
         FX.burst(this, W / 2, 470, { tex: 'shell', count: 14, speed: 600, life: 1100, scale: 1.2, gravity: 900, rotate: true, depth: 50 });
         FX.burst(this, W / 2, 470, { tex: 'spark', count: 30, speed: 520, life: 900, scale: 1, tint: [0xffffff, 0xffd84d, 0x9fd8ff], add: true });
         FX.rays(this, W / 2, 470, 0xfff1a8, { depth: 1, r: 420 });
-        const s = S(); s.species = PET.randomSpecies(); s.petName = PET.sp(s).def; s.hatched = true; s.petStage = 1; s.pos = null; PET.seen(s); Save.save();
+        const s = S(); const extra = s.hatched; if (extra) { PET.stash(s); s.eggs = Math.max(0, (s.eggs || 0) - 1); } s.species = PET.randomSpecies(s); s.petName = PET.sp(s).def; s.petBase = extra ? s.stars : 0; s.hatched = true; s.petStage = 1; s.pos = null; s.pets = s.pets || []; s.active = s.pets.length; PET.stash(s); PET.seen(s); Save.save();
         const pet = new Pet(this, W / 2, 610, 260, 1); pet.setDepth(10); pet.setScale(0);
         this.tweens.add({ targets: pet, scale: 1, duration: 600, ease: 'Back.Out', onComplete: () => pet.cheer(['你好呀！', 'Hello!']) });
         SFX.play('fanfare'); FX.confetti(this);
         const sp = PET.sp(s);
         const ban = FX.banner(this, '是' + sp.name + '宝宝！快给它起个名字吧', { y: 140, hold: 99999, color: C.coral });
         this.time.delayedCall(1300, () => G.askName(s.petName, sp, name => {
-          s.petName = name; Save.save(); pet.cheer(['我叫' + name + '！', '谢谢你！']);
+          s.petName = name; PET.stash(s); Save.save(); pet.cheer(['我叫' + name + '！', '谢谢你！']);
           if (ban && ban.destroy) ban.destroy();
           FX.banner(this, sp.name + '宝宝「' + name + '」出生啦！', { y: 140, hold: 99999, color: C.coral });
           const b = button(this, W / 2, 725, 320, 80, '带它去冒险', { color: C.mint, size: 34, onClick: () => G.trans.go(this, 'Map') });
@@ -474,6 +516,7 @@
       this.time.delayedCall(700, () => {
         if (s.justUnlocked) { const u = s.justUnlocked; s.justUnlocked = 0; Save.save(); this.revealZone(u); }
         else if (PET.evolveTo(s)) this.evolve(PET.evolveTo(s));
+        else if (PET.checkEggs(s) || s.eggs > 0) G.openEgg(this);
         else if (!s.tipsSeen.map) { s.tipsSeen.map = 1; Save.save(); this.pet.say('走进草丛会遇到单词怪哦！', 2600); }
       });
     }
@@ -610,7 +653,7 @@
         else {
           a.destroy(); b.clearTint(); b.setVisible(true); hud.cameras.main.flash(500, 255, 255, 255); SFX.play('fanfare');
           FX.confetti(hud, { depth: 320 }); FX.burst(hud, W / 2, 420, { tex: 'star', count: 24, speed: 500, life: 1200, scale: 0.8, depth: 320 });
-          s.petStage = to; PET.seen(s); Save.save(); this.pet.h = PET.h(112, 125, to); this.pet.setStage(to);
+          s.petStage = to; PET.seen(s); PET.stash(s); Save.save(); this.pet.h = PET.h(112, 125, to); this.pet.setStage(to);
           FX.banner(hud, s.petName + '进化成了「' + PET.name(to) + '」！', { y: 120, hold: 2200, color: C.coral, depth: 310 });
           hud.tweens.add({ targets: b, y: 540, duration: 600, yoyo: true, repeat: 1, ease: 'Sine.InOut' });
           hud.syncNow();
